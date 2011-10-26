@@ -32,7 +32,7 @@
            (unzip tmp (index-location url))
            (finally (.delete tmp))))))
 
-(defn- download-needed? [url]
+(defn download-needed? [url]
   (not (.exists (index-location url))))
 
 (defn ensure-fresh-index [url]
