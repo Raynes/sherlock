@@ -48,12 +48,15 @@
 
 (defn search-repository [url query page]
   (when (ensure-fresh-index url)
-    (let [location (.getAbsolutePath (index-location url))
-          fetch-count (* page *page-size*)
-          offset (* (dec page) *page-size*)
-          results (clucy/search (clucy/disk-index location)
-                                query fetch-count :default-field :a)]
-      (with-meta (drop offset results) (meta results)))))
+    (clucy/search (clucy/disk-index (.getAbsolutePath (index-location url)))
+                  query (* page *page-size*) :default-field :a)))
+
+(defn get-page
+  "Get a specific page of results from a sequence of results."
+  [page results]
+  (with-meta
+    (take *page-size* (drop (* (dec page) *page-size*) results))
+    (meta results)))
 
 (defn- split-bar [s] (.split s "\\|"))
 
@@ -75,18 +78,19 @@
 
 (defn search
   "Search a maven repository. Takes a URL to the maven repo, the query string, and
-   the number of pages of results you'd like to return. This number will be multiplied
-   by *page-size* to get the number of results to return. Returns a sequence of maps of
-   artifacts. Each map has the following keys: :version, :artifact-id, :group-id,
-   :classifier, :sha1, :name, :description, :updated, :size, and :packaging. Metadata
-   on the sequence includes :_total-hits and :_max-score keys.
+   optionally the number of pages you'd like to fetch, where each page is *page-size*
+   results long (25 by default). By default, search will fetch 2 pages. You can get specific
+   pages by using the get-pages function. Returns a sequence of maps of artifacts. Each map
+   has the following keys: :version, :artifact-id, :group-id, :classifier, :sha1, :name,
+   :description, :updated, :size, and :packaging. Metadata on the sequence includes
+   :_total-hits and :_max-score keys.
 
    Sherlock looks for indexes in ~/.sherlock by default. This can be changed by setting
    *base-index-location*. If the index for the repository that you're searching is not
    found, Sherlock will download the index and place it in *base-index-location*. This
    can take a while, as some indexes are very large."
-  [url query pages]
-  (let [results (search-repository url query pages)]
+  [url query & [pages]]
+  (let [results (search-repository url query (or pages 2))]
     (with-meta (map parse-result results) (meta results))))
 
 (defn update-index
